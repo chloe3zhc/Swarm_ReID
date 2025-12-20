@@ -1,0 +1,1 @@
+train_net.py --config_file E:/ZHC/FusionReID-master/configs/MSMT17/msmt_vitb12_res50_layer2.yml
