@@ -482,19 +482,21 @@ class Model(torch.nn.Module):
         **kwargs: Any,
     ) -> list[Results]:
         """Perform predictions on the given image source using the YOLO model.
+        使用YOLO模型进行预测并返回预测结果列表
 
         This method facilitates the prediction process, allowing various configurations through keyword arguments. It
         supports predictions with custom predictors or the default predictor method. The method handles different types
         of image sources and can operate in a streaming mode.
+        该方法支持自定义预测器或默认预测器方法进行预测。它能够处理不同类型的图像源，并可以在流式模式下操作。
 
         Args:
             source (str | Path | int | PIL.Image | np.ndarray | torch.Tensor | list | tuple): The source of the image(s)
                 to make predictions on. Accepts various types including file paths, URLs, PIL images, numpy arrays, and
-                torch tensors.
-            stream (bool): If True, treats the input source as a continuous stream for predictions.
+                torch tensors.接受不同类型的图像源，包括文件路径、URL、PIL 图像、numpy 数组和 torch 张量。
+            stream (bool): If True, treats the input source as a continuous stream for predictions.  如果为 True，则将输入源视为连续流进行预测。
             predictor (BasePredictor, optional): An instance of a custom predictor class for making predictions. If
-                None, the method uses a default predictor.
-            **kwargs (Any): Additional keyword arguments for configuring the prediction process.
+                None, the method uses a default predictor.  如果为 None，则使用默认预测器方法。
+            **kwargs (Any): Additional keyword arguments for configuring the prediction process.  用于配置预测过程的其他关键字参数。
 
         Returns:
             (list[ultralytics.engine.results.Results]): A list of prediction results, each encapsulated in a Results
@@ -507,9 +509,9 @@ class Model(torch.nn.Module):
             ...     print(r.boxes.data)  # print detection bounding boxes
 
         Notes:
-            - If 'source' is not provided, it defaults to the ASSETS constant with a warning.
-            - The method sets up a new predictor if not already present and updates its arguments with each call.
-            - For SAM-type models, 'prompts' can be passed as a keyword argument.
+            - If 'source' is not provided, it defaults to the ASSETS constant with a warning. 如果未提供 'source'，则默认使用 ASSETS 常量，并显示警告。
+            - The method sets up a new predictor if not already present and updates its arguments with each call. 如果未存在预测器，则创建新的预测器并更新其参数。
+            - For SAM-type models, 'prompts' can be passed as a keyword argument.  对于 SAM 类型模型，'prompts' 可以作为关键字参数传递。
         """
         if source is None:
             source = "https://ultralytics.com/images/boats.jpg" if self.task == "obb" else ASSETS
@@ -541,21 +543,24 @@ class Model(torch.nn.Module):
         persist: bool = False,
         **kwargs: Any,
     ) -> list[Results]:
-        """Conduct object tracking on the specified input source using the registered trackers.
+        """Conduct object tracking on the specified input source using the registered trackers. 对指定输入源使用注册的跟踪器进行对象跟踪。
 
         This method performs object tracking using the model's predictors and optionally registered trackers. It handles
         various input sources such as file paths or video streams, and supports customization through keyword arguments.
         The method registers trackers if not already present and can persist them between calls.
+        该方法使用模型的预测器和可选的注册跟踪器执行对象跟踪。它处理
+        各种输入源，如文件路径或视频流，并支持通过关键字参数进行自定义。
+        如果跟踪器尚未注册，则该方法会注册跟踪器，并可以在调用之间保持它们。
 
         Args:
             source (str | Path | int | list | tuple | np.ndarray | torch.Tensor, optional): Input source for object
-                tracking. Can be a file path, URL, or video stream.
-            stream (bool): If True, treats the input source as a continuous video stream.
-            persist (bool): If True, persists trackers between different calls to this method.
-            **kwargs (Any): Additional keyword arguments for configuring the tracking process.
+                tracking. Can be a file path, URL, or video stream. 用于对象跟踪的输入源。可以是文件路径、URL 或视频流。
+            stream (bool): If True, treats the input source as a continuous video stream. 如果为 True，则将输入源视为连续视频流。
+            persist (bool): If True, persists trackers between different calls to this method. 如果为 True，则在不同调用之间保持跟踪器。
+            **kwargs (Any): Additional keyword arguments for configuring the tracking process. 用于配置跟踪过程的其他关键字参数。
 
         Returns:
-            (list[ultralytics.engine.results.Results]): A list of tracking results, each a Results object.
+            (list[ultralytics.engine.results.Results]): A list of tracking results, each a Results object. 跟踪结果的列表，每个结果都是 Results 对象。
 
         Examples:
             >>> model = YOLO("yolo11n.pt")
@@ -564,16 +569,16 @@ class Model(torch.nn.Module):
             ...     print(r.boxes.id)  # print tracking IDs
 
         Notes:
-            - This method sets a default confidence threshold of 0.1 for ByteTrack-based tracking.
-            - The tracking mode is explicitly set in the keyword arguments.
-            - Batch size is set to 1 for tracking in videos.
+            - This method sets a default confidence threshold of 0.1 for ByteTrack-based tracking. 对于基于 ByteTrack 的跟踪，该方法设置默认置信度阈值为 0.1。
+            - The tracking mode is explicitly set in the keyword arguments. 在关键字参数中明确设置跟踪模式。
+            - Batch size is set to 1 for tracking in videos. 视频中的跟踪批量大小设置为 1。
         """
         if not hasattr(self.predictor, "trackers"):
             from ultralytics.trackers import register_tracker
 
             register_tracker(self, persist)
-        kwargs["conf"] = kwargs.get("conf") or 0.1  # ByteTrack-based method needs low confidence predictions as input
-        kwargs["batch"] = kwargs.get("batch") or 1  # batch-size 1 for tracking in videos
+        kwargs["conf"] = kwargs.get("conf") or 0.1  # ByteTrack-based method needs low confidence predictions as input 基于 ByteTrack 的方法需要低置信度预测作为输入
+        kwargs["batch"] = kwargs.get("batch") or 1  # batch-size 1 for tracking in videos 视频中的跟踪批量大小设置为 1
         kwargs["mode"] = "track"
         return self.predict(source=source, stream=stream, **kwargs)
 

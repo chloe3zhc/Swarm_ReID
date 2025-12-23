@@ -35,20 +35,21 @@ from ultralytics.utils.torch_utils import TORCH_2_0
 
 
 class InfiniteDataLoader(dataloader.DataLoader):
-    """DataLoader that reuses workers for infinite iteration.
+    """DataLoader that reuses workers for infinite iteration.数据加载器，用于无限迭代数据集。
 
     This dataloader extends the PyTorch DataLoader to provide infinite recycling of workers, which improves efficiency
     for training loops that need to iterate through the dataset multiple times without recreating workers.
+    该数据加载器会无限重复使用工作线程，以提高训练循环的效率。
 
     Attributes:
-        batch_sampler (_RepeatSampler): A sampler that repeats indefinitely.
-        iterator (Iterator): The iterator from the parent DataLoader.
+        batch_sampler (_RepeatSampler): A sampler that repeats indefinitely.无限重复采样器。
+        iterator (Iterator): The iterator from the parent DataLoader.数据加载器的迭代器。
 
     Methods:
-        __len__: Return the length of the batch sampler's sampler.
-        __iter__: Create a sampler that repeats indefinitely.
-        __del__: Ensure workers are properly terminated.
-        reset: Reset the iterator, useful when modifying dataset settings during training.
+        __len__: Return the length of the batch sampler's sampler.返回批量采样器的采样器长度。
+        __iter__: Create a sampler that repeats indefinitely.创建一个无限重复采样器。
+        __del__: Ensure workers are properly terminated.确保工作线程被正确终止。
+        reset: Reset the iterator, useful when modifying dataset settings during training.在训练过程中修改数据集设置时，重置迭代器。
 
     Examples:
         Create an infinite DataLoader for training
@@ -59,7 +60,7 @@ class InfiniteDataLoader(dataloader.DataLoader):
     """
 
     def __init__(self, *args: Any, **kwargs: Any):
-        """Initialize the InfiniteDataLoader with the same arguments as DataLoader."""
+        """Initialize the InfiniteDataLoader with the same arguments as DataLoader.初始化无限数据加载器，与DataLoader相同的参数。"""
         if not TORCH_2_0:
             kwargs.pop("prefetch_factor", None)  # not supported by earlier versions
         super().__init__(*args, **kwargs)
@@ -67,16 +68,16 @@ class InfiniteDataLoader(dataloader.DataLoader):
         self.iterator = super().__iter__()
 
     def __len__(self) -> int:
-        """Return the length of the batch sampler's sampler."""
+        """Return the length of the batch sampler's sampler.返回批量采样器的采样器长度。"""
         return len(self.batch_sampler.sampler)
 
     def __iter__(self) -> Iterator:
-        """Create an iterator that yields indefinitely from the underlying iterator."""
+        """Create an iterator that yields indefinitely from the underlying iterator.创建一个无限重复迭代器，从基础迭代器中无限重复 yield 数据。"""
         for _ in range(len(self)):
             yield next(self.iterator)
 
     def __del__(self):
-        """Ensure that workers are properly terminated when the DataLoader is deleted."""
+        """Ensure that workers are properly terminated when the DataLoader is deleted.确保在删除数据加载器时，工作线程被正确终止。"""
         try:
             if not hasattr(self.iterator, "_workers"):
                 return
@@ -88,7 +89,7 @@ class InfiniteDataLoader(dataloader.DataLoader):
             pass
 
     def reset(self):
-        """Reset the iterator to allow modifications to the dataset during training."""
+        """Reset the iterator to allow modifications to the dataset during training.在训练过程中修改数据集设置时，重置迭代器。"""
         self.iterator = self._get_iterator()
 
 
@@ -113,7 +114,7 @@ class _RepeatSampler:
 
 
 class ContiguousDistributedSampler(torch.utils.data.Sampler):
-    """Distributed sampler that assigns contiguous batch-aligned chunks of the dataset to each GPU.
+    """Distributed sampler that assigns contiguous batch-aligned chunks of the dataset to each GPU.分布式采样器，将数据集的连续批量对齐块分配给每个 GPU。
 
     Unlike PyTorch's DistributedSampler which distributes samples in a round-robin fashion (GPU 0 gets indices
     [0,2,4,...], GPU 1 gets [1,3,5,...]), this sampler gives each GPU contiguous batches of the dataset (GPU 0 gets

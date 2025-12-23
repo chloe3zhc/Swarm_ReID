@@ -231,8 +231,8 @@ def do_real_time_inference(cfg, model, image_loader):
                     known_features.append(feat_np)
                     known_ids.append(assigned_id)
                     logger.info(f"New ID {assigned_id} assigned to image {img_path}")
-                # else:
-                    # logger.info(f"Existing ID {assigned_id} assigned to image {img_path}")
+                else:
+                    logger.info(f"Existing ID {assigned_id} assigned to image {img_path}")
 
                 assigned_ids.append(assigned_id)
 

@@ -1,4 +1,7 @@
 # Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
+########################################################################################
+# 包含了处理各种输入源（图像、视频、流媒体等）的加载器类，用于将输入数据转换为模型可处理的格式。
+######################################################################################
 
 from __future__ import annotations
 
@@ -26,15 +29,17 @@ from ultralytics.utils.patches import imread
 @dataclass
 class SourceTypes:
     """Class to represent various types of input sources for predictions.
+        表示不同类型的输入源，用于预测。
 
     This class uses dataclass to define boolean flags for different types of input sources that can be used for making
     predictions with YOLO models.
+        用于定义不同类型输入源的布尔标志，用于 YOLO 模型的预测。
 
     Attributes:
-        stream (bool): Flag indicating if the input source is a video stream.
-        screenshot (bool): Flag indicating if the input source is a screenshot.
-        from_img (bool): Flag indicating if the input source is an image file.
-        tensor (bool): Flag indicating if the input source is a tensor.
+        stream (bool): Flag indicating if the input source is a video stream.是否为视频流。
+        screenshot (bool): Flag indicating if the input source is a screenshot.是否为截图。
+        from_img (bool): Flag indicating if the input source is an image file.是否为图像文件。
+        tensor (bool): Flag indicating if the input source is a tensor.是否为张量。
 
     Examples:
         >>> source_types = SourceTypes(stream=True, screenshot=False, from_img=False)
@@ -52,31 +57,33 @@ class SourceTypes:
 
 class LoadStreams:
     """Stream Loader for various types of video streams.
+        用于加载各种类型视频流的流加载器。
 
     Supports RTSP, RTMP, HTTP, and TCP streams. This class handles the loading and processing of multiple video streams
     simultaneously, making it suitable for real-time video analysis tasks.
+        同时加载多种类型视频流的流加载器，适用于实时视频分析任务。
 
     Attributes:
-        sources (list[str]): The source input paths or URLs for the video streams.
-        vid_stride (int): Video frame-rate stride.
-        buffer (bool): Whether to buffer input streams.
-        running (bool): Flag to indicate if the streaming thread is running.
-        mode (str): Set to 'stream' indicating real-time capture.
-        imgs (list[list[np.ndarray]]): List of image frames for each stream.
-        fps (list[float]): List of FPS for each stream.
-        frames (list[int]): List of total frames for each stream.
-        threads (list[Thread]): List of threads for each stream.
-        shape (list[tuple[int, int, int]]): List of shapes for each stream.
-        caps (list[cv2.VideoCapture]): List of cv2.VideoCapture objects for each stream.
-        bs (int): Batch size for processing.
-        cv2_flag (int): OpenCV flag for image reading (grayscale or color/BGR).
+        sources (list[str]): The source input paths or URLs for the video streams.视频流的源输入路径或 URL。
+        vid_stride (int): Video frame-rate stride.视频帧率步长。
+        buffer (bool): Whether to buffer input streams.是否缓冲输入流。
+        running (bool): Flag to indicate if the streaming thread is running.是否运行流线程。
+        mode (str): Set to 'stream' indicating real-time capture.设置为 'stream' 表示实时捕获。
+        imgs (list[list[np.ndarray]]): List of image frames for each stream.每个流的图像帧列表。
+        fps (list[float]): List of FPS for each stream.每个流的帧率列表。
+        frames (list[int]): List of total frames for each stream.每个流的总帧数列表。
+        threads (list[Thread]): List of threads for each stream.每个流的线程列表。
+        shape (list[tuple[int, int, int]]): List of shapes for each stream.每个流的图像形状列表。
+        caps (list[cv2.VideoCapture]): List of cv2.VideoCapture objects for each stream.每个流的 cv2.VideoCapture 对象列表。
+        bs (int): Batch size for processing.处理的批量大小。
+        cv2_flag (int): OpenCV flag for image reading (grayscale or color/BGR).图像读取的 OpenCV 标志（灰度或彩色/BGR）。
 
     Methods:
-        update: Read stream frames in daemon thread.
-        close: Close stream loader and release resources.
-        __iter__: Returns an iterator object for the class.
-        __next__: Returns source paths, transformed, and original images for processing.
-        __len__: Return the length of the sources object.
+        update: Read stream frames in daemon thread.在守护线程中读取流帧。
+        close: Close stream loader and release resources.关闭流加载器并释放资源。
+        __iter__: Returns an iterator object for the class.返回类的迭代器对象。
+        __next__: Returns source paths, transformed, and original images for processing.返回源路径、转换后的图像和原始图像，用于处理。
+        __len__: Return the length of the sources object.返回 sources 对象的长度。
 
     Examples:
         >>> stream_loader = LoadStreams("rtsp://example.com/stream1.mp4")
@@ -86,88 +93,89 @@ class LoadStreams:
         >>> stream_loader.close()
 
     Notes:
-        - The class uses threading to efficiently load frames from multiple streams simultaneously.
-        - It automatically handles YouTube links, converting them to the best available stream URL.
-        - The class implements a buffer system to manage frame storage and retrieval.
+        - The class uses threading to efficiently load frames from multiple streams simultaneously.同时从多个流加载帧。
+        - It automatically handles YouTube links, converting them to the best available stream URL.自动处理 YouTube 链接，转换为最佳可用流 URL。
+        - The class implements a buffer system to manage frame storage and retrieval.实现缓冲区系统来管理帧存储和检索。
     """
 
     def __init__(self, sources: str = "file.streams", vid_stride: int = 1, buffer: bool = False, channels: int = 3):
         """Initialize stream loader for multiple video sources, supporting various stream types.
+        初始化多个视频源的流加载器，支持各种流类型。
 
         Args:
-            sources (str): Path to streams file or single stream URL.
-            vid_stride (int): Video frame-rate stride.
-            buffer (bool): Whether to buffer input streams.
-            channels (int): Number of image channels (1 for grayscale, 3 for color).
+            sources (str): Path to streams file or single stream URL.视频流的源输入路径或 URL。
+            vid_stride (int): Video frame-rate stride.视频帧率步长。
+            buffer (bool): Whether to buffer input streams.是否缓冲输入流。
+            channels (int): Number of image channels (1 for grayscale, 3 for color).图像通道数（灰度为 1，彩色为 3）。
         """
-        torch.backends.cudnn.benchmark = True  # faster for fixed-size inference
-        self.buffer = buffer  # buffer input streams
-        self.running = True  # running flag for Thread
+        torch.backends.cudnn.benchmark = True  # faster for fixed-size inference 固定批量大小推理更快
+        self.buffer = buffer  # buffer input streams 是否缓冲输入流
+        self.running = True  # running flag for Thread 线程运行标志
         self.mode = "stream"
-        self.vid_stride = vid_stride  # video frame-rate stride
-        self.cv2_flag = cv2.IMREAD_GRAYSCALE if channels == 1 else cv2.IMREAD_COLOR  # grayscale or color (BGR)
+        self.vid_stride = vid_stride  # video frame-rate stride 视频帧率步长
+        self.cv2_flag = cv2.IMREAD_GRAYSCALE if channels == 1 else cv2.IMREAD_COLOR  # grayscale or color (BGR) 灰度或彩色 (BGR)
 
         sources = Path(sources).read_text().rsplit() if os.path.isfile(sources) else [sources]
         n = len(sources)
         self.bs = n
-        self.fps = [0] * n  # frames per second
-        self.frames = [0] * n
-        self.threads = [None] * n
-        self.caps = [None] * n  # video capture objects
-        self.imgs = [[] for _ in range(n)]  # images
-        self.shape = [[] for _ in range(n)]  # image shapes
-        self.sources = [ops.clean_str(x).replace(os.sep, "_") for x in sources]  # clean source names for later
-        for i, s in enumerate(sources):  # index, source
-            # Start thread to read frames from video stream
+        self.fps = [0] * n  # frames per second 每个流的帧率
+        self.frames = [0] * n  # total frames 每个流的总帧数
+        self.threads = [None] * n  # threads for each stream 每个流的线程
+        self.caps = [None] * n  # video capture objects 每个流的 cv2.VideoCapture 对象
+        self.imgs = [[] for _ in range(n)]  # images 每个流的图像帧列表
+        self.shape = [[] for _ in range(n)]  # image shapes 每个流的图像形状列表
+        self.sources = [ops.clean_str(x).replace(os.sep, "_") for x in sources]  # clean source names for later 使用下划线替换路径分隔符，稍后用于文件名
+        for i, s in enumerate(sources):  # index, source 索引，源
+            # Start thread to read frames from video stream 启动线程从视频流读取帧
             st = f"{i + 1}/{n}: {s}... "
-            if urllib.parse.urlparse(s).hostname in {"www.youtube.com", "youtube.com", "youtu.be"}:  # YouTube video
+            if urllib.parse.urlparse(s).hostname in {"www.youtube.com", "youtube.com", "youtu.be"}:  # YouTube video  YouTube 视频
                 # YouTube format i.e. 'https://www.youtube.com/watch?v=Jsn8D3aC840' or 'https://youtu.be/Jsn8D3aC840'
                 s = get_best_youtube_url(s)
             s = int(s) if s.isnumeric() else s  # i.e. s = '0' local webcam
             if s == 0 and (IS_COLAB or IS_KAGGLE):
                 raise NotImplementedError(
-                    "'source=0' webcam not supported in Colab and Kaggle notebooks. "
-                    "Try running 'source=0' in a local environment."
+                    "'source=0' webcam not supported in Colab and Kaggle notebooks. "  # 不支持 Colab 和 Kaggle 笔记本中的 'source=0' 网络摄像头
+                    "Try running 'source=0' in a local environment."  # 请在本地环境中运行 'source=0'
                 )
-            self.caps[i] = cv2.VideoCapture(s)  # store video capture object
-            if not self.caps[i].isOpened():
-                raise ConnectionError(f"{st}Failed to open {s}")
-            w = int(self.caps[i].get(cv2.CAP_PROP_FRAME_WIDTH))
-            h = int(self.caps[i].get(cv2.CAP_PROP_FRAME_HEIGHT))
-            fps = self.caps[i].get(cv2.CAP_PROP_FPS)  # warning: may return 0 or nan
+            self.caps[i] = cv2.VideoCapture(s)  # store video capture object 存储视频捕获对象
+            if not self.caps[i].isOpened():  # 检查视频捕获对象是否成功打开
+                raise ConnectionError(f"{st}Failed to open {s}")  # 抛出连接错误，提示无法打开视频流
+            w = int(self.caps[i].get(cv2.CAP_PROP_FRAME_WIDTH))  # 视频流的宽度
+            h = int(self.caps[i].get(cv2.CAP_PROP_FRAME_HEIGHT))  # 视频流的高度
+            fps = self.caps[i].get(cv2.CAP_PROP_FPS)  # warning: may return 0 or nan 警告：可能返回 0 或 nan
             self.frames[i] = max(int(self.caps[i].get(cv2.CAP_PROP_FRAME_COUNT)), 0) or float(
                 "inf"
-            )  # infinite stream fallback
-            self.fps[i] = max((fps if math.isfinite(fps) else 0) % 100, 0) or 30  # 30 FPS fallback
+            )  # infinite stream fallback 无限流回退
+            self.fps[i] = max((fps if math.isfinite(fps) else 0) % 100, 0) or 30  # 30 FPS fallback 30 FPS 回退
 
-            success, im = self.caps[i].read()  # guarantee first frame
+            success, im = self.caps[i].read()  # guarantee first frame 确保读取到第一帧
             im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)[..., None] if self.cv2_flag == cv2.IMREAD_GRAYSCALE else im
             if not success or im is None:
-                raise ConnectionError(f"{st}Failed to read images from {s}")
+                raise ConnectionError(f"{st}Failed to read images from {s}")  # 抛出连接错误，提示无法读取视频流中的图像
             self.imgs[i].append(im)
             self.shape[i] = im.shape
             self.threads[i] = Thread(target=self.update, args=([i, self.caps[i], s]), daemon=True)
-            LOGGER.info(f"{st}Success ✅ ({self.frames[i]} frames of shape {w}x{h} at {self.fps[i]:.2f} FPS)")
+            LOGGER.info(f"{st}Success成功 ✅ ({self.frames[i]} frames of shape {w}x{h} at {self.fps[i]:.2f} FPS)")
             self.threads[i].start()
         LOGGER.info("")  # newline
 
     def update(self, i: int, cap: cv2.VideoCapture, stream: str):
-        """Read stream frames in daemon thread and update image buffer."""
-        n, f = 0, self.frames[i]  # frame number, frame array
+        """Read stream frames in daemon thread and update image buffer. 守护线程读取视频流帧并更新图像缓冲区。"""
+        n, f = 0, self.frames[i]  # frame number, frame array 帧号，帧数组
         while self.running and cap.isOpened() and n < (f - 1):
-            if len(self.imgs[i]) < 30:  # keep a <=30-image buffer
+            if len(self.imgs[i]) < 30:  # keep a <=30-image buffer 保持 <=30 图像缓冲区
                 n += 1
                 cap.grab()  # .read() = .grab() followed by .retrieve()
-                if n % self.vid_stride == 0:
-                    success, im = cap.retrieve()
+                if n % self.vid_stride == 0:  # skip frames 根据视频帧率步长跳过帧
+                    success, im = cap.retrieve()  # retrieve frame from video stream 从视频流检索帧
                     im = (
                         cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)[..., None] if self.cv2_flag == cv2.IMREAD_GRAYSCALE else im
                     )
                     if not success:
                         im = np.zeros(self.shape[i], dtype=np.uint8)
-                        LOGGER.warning("Video stream unresponsive, please check your IP camera connection.")
-                        cap.open(stream)  # re-open stream if signal was lost
-                    if self.buffer:
+                        LOGGER.warning("Video stream unresponsive, please check your IP camera connection. 视频流不响应，请检查 IP 摄像头连接。")
+                        cap.open(stream)  # re-open stream if signal was lost 如果信号丢失，重新打开视频流
+                    if self.buffer:  # buffer images if stream is responsive 如果流响应，缓冲图像
                         self.imgs[i].append(im)
                     else:
                         self.imgs[i] = [im]
@@ -175,19 +183,21 @@ class LoadStreams:
                 time.sleep(0.01)  # wait until the buffer is empty
 
     def close(self):
-        """Terminate stream loader, stop threads, and release video capture resources."""
-        self.running = False  # stop flag for Thread
+        """Terminate stream loader, stop threads, and release video capture resources. 终止流加载器，停止线程并释放视频捕获资源。"""
+        self.running = False  # stop flag for Thread 线程停止标志
         for thread in self.threads:
             if thread.is_alive():
-                thread.join(timeout=5)  # Add timeout
-        for cap in self.caps:  # Iterate through the stored VideoCapture objects
+                thread.join(timeout=5)  # Add timeout 超时等待线程结束
+        for cap in self.caps:  # Iterate through the stored VideoCapture objects 遍历存储的视频捕获对象
             try:
-                cap.release()  # release video capture
+                cap.release()  # release video capture 释放视频捕获
             except Exception as e:
-                LOGGER.warning(f"Could not release VideoCapture object: {e}")
+                LOGGER.warning(f"Could not release VideoCapture object: {e} 无法释放视频捕获对象")  # 抛出警告，提示无法释放视频捕获对象
+
+
 
     def __iter__(self):
-        """Iterate through YOLO image feed and re-open unresponsive streams."""
+        """Iterate through YOLO image feed and re-open unresponsive streams. 迭代 YOLO 图像流并重新打开不响应的流。"""
         self.count = -1
         return self
 
@@ -197,7 +207,7 @@ class LoadStreams:
 
         images = []
         for i, x in enumerate(self.imgs):
-            # Wait until a frame is available in each buffer
+            # Wait until a frame is available in each buffer 等待每个缓冲区中可用的帧
             while not x:
                 if not self.threads[i].is_alive():
                     self.close()
@@ -207,7 +217,7 @@ class LoadStreams:
                 if not x:
                     LOGGER.warning(f"Waiting for stream {i}")
 
-            # Get and remove the first frame from imgs buffer
+            # Get and remove the first frame from imgs buffer 获取并移除 imgs 缓冲区中的第一帧
             if self.buffer:
                 images.append(x.pop(0))
 
@@ -219,12 +229,12 @@ class LoadStreams:
         return self.sources, images, [""] * self.bs
 
     def __len__(self) -> int:
-        """Return the number of video streams in the LoadStreams object."""
+        """Return the number of video streams in the LoadStreams object. 返回 LoadStreams 对象中的视频流数量。"""
         return self.bs  # 1E12 frames = 32 streams at 30 FPS for 30 years
 
 
 class LoadScreenshots:
-    """Ultralytics screenshot dataloader for capturing and processing screen images.
+    """Ultralytics screenshot dataloader for capturing and processing screen images. 用于捕获和处理屏幕图像的 Ultralytics 截图数据加载器。
 
     This class manages the loading of screenshot images for processing with YOLO. It is suitable for use with `yolo
     predict source=screen`.
@@ -302,31 +312,31 @@ class LoadScreenshots:
 
 
 class LoadImagesAndVideos:
-    """A class for loading and processing images and videos for YOLO object detection.
+    """A class for loading and processing images and videos for YOLO object detection. 用于加载和处理 YOLO 对象检测的图像和视频类。
 
     This class manages the loading and pre-processing of image and video data from various sources, including single
-    image files, video files, and lists of image and video paths.
+    image files, video files, and lists of image and video paths. 用于加载和处理图像和视频的类。
 
     Attributes:
-        files (list[str]): List of image and video file paths.
-        nf (int): Total number of files (images and videos).
-        video_flag (list[bool]): Flags indicating whether a file is a video (True) or an image (False).
-        mode (str): Current mode, 'image' or 'video'.
-        vid_stride (int): Stride for video frame-rate.
-        bs (int): Batch size.
-        cap (cv2.VideoCapture): Video capture object for OpenCV.
-        frame (int): Frame counter for video.
-        frames (int): Total number of frames in the video.
-        count (int): Counter for iteration, initialized at 0 during __iter__().
-        ni (int): Number of images.
-        cv2_flag (int): OpenCV flag for image reading (grayscale or color/BGR).
+        files (list[str]): List of image and video file paths. 图像和视频文件路径列表。
+        nf (int): Total number of files (images and videos). 图像和视频文件总数。
+        video_flag (list[bool]): Flags indicating whether a file is a video (True) or an image (False). 指示文件是否为视频（True）或图像（False）的标志列表。
+        mode (str): Current mode, 'image' or 'video'. 当前模式，'image' 或 'video'。
+        vid_stride (int): Stride for video frame-rate. 视频帧率的步长。
+        bs (int): Batch size. 批量大小。
+        cap (cv2.VideoCapture): Video capture object for OpenCV. OpenCV 视频捕获对象。
+        frame (int): Frame counter for video. 视频帧计数器。
+        frames (int): Total number of frames in the video. 视频总帧数。
+        count (int): Counter for iteration, initialized at 0 during __iter__(). 迭代计数器，在 __iter__() 中初始化为 0。
+        ni (int): Number of images. 图像数量。
+        cv2_flag (int): OpenCV flag for image reading (grayscale or color/BGR). OpenCV 图像读取标志（灰度或颜色/BGR）。
 
     Methods:
-        __init__: Initialize the LoadImagesAndVideos object.
-        __iter__: Returns an iterator object for VideoStream or ImageFolder.
-        __next__: Returns the next batch of images or video frames along with their paths and metadata.
-        _new_video: Creates a new video capture object for the given path.
-        __len__: Returns the number of batches in the object.
+        __init__: Initialize the LoadImagesAndVideos object. 初始化 LoadImagesAndVideos 对象。
+        __iter__: Returns an iterator object for VideoStream or ImageFolder. 返回 VideoStream 或 ImageFolder 的迭代器对象。
+        __next__: Returns the next batch of images or video frames along with their paths and metadata. 返回下一批图像或视频帧，以及它们的路径和元数据。
+        _new_video: Creates a new video capture object for the given path. 为给定路径创建新的视频捕获对象。
+        __len__: Returns the number of batches in the object. 返回对象中的批量数量。
 
     Examples:
         >>> loader = LoadImagesAndVideos("path/to/data", batch=32, vid_stride=1)
@@ -335,19 +345,19 @@ class LoadImagesAndVideos:
         ...     pass
 
     Notes:
-        - Supports various image formats including HEIC.
-        - Handles both local files and directories.
-        - Can read from a text file containing paths to images and videos.
+        - Supports various image formats including HEIC. 支持包括 HEIC 在内的各种图像格式。
+        - Handles both local files and directories. 处理本地文件和目录。
+        - Can read from a text file containing paths to images and videos. 可以从包含图像和视频路径的文本文件中读取。
     """
 
     def __init__(self, path: str | Path | list, batch: int = 1, vid_stride: int = 1, channels: int = 3):
         """Initialize dataloader for images and videos, supporting various input formats.
 
         Args:
-            path (str | Path | list): Path to images/videos, directory, or list of paths.
-            batch (int): Batch size for processing.
-            vid_stride (int): Video frame-rate stride.
-            channels (int): Number of image channels (1 for grayscale, 3 for color).
+            path (str | Path | list): Path to images/videos, directory, or list of paths. 图像和视频路径、目录或路径列表。
+            batch (int): Batch size for processing. 处理的批量大小。
+            vid_stride (int): Video frame-rate stride. 视频帧率的步长。
+            channels (int): Number of image channels (1 for grayscale, 3 for color). 图像通道数（灰度为 1，彩色为 3）。
         """
         parent = None
         if isinstance(path, str) and Path(path).suffix in {".txt", ".csv"}:  # txt/csv file with source paths
@@ -483,16 +493,16 @@ class LoadImagesAndVideos:
 
 
 class LoadPilAndNumpy:
-    """Load images from PIL and Numpy arrays for batch processing.
+    """Load images from PIL and Numpy arrays for batch processing. 用于批量处理 PIL 和 Numpy 数组图像的加载器。
 
     This class manages loading and pre-processing of image data from both PIL and Numpy formats. It performs basic
-    validation and format conversion to ensure that the images are in the required format for downstream processing.
+    validation and format conversion to ensure that the images are in the required format for downstream processing. 用于验证和转换图像格式，确保图像符合下游处理的要求。
 
     Attributes:
-        paths (list[str]): List of image paths or autogenerated filenames.
-        im0 (list[np.ndarray]): List of images stored as Numpy arrays.
-        mode (str): Type of data being processed, set to 'image'.
-        bs (int): Batch size, equivalent to the length of `im0`.
+        paths (list[str]): List of image paths or autogenerated filenames. 图像路径列表或自动生成的文件名列表。
+        im0 (list[np.ndarray]): List of images stored as Numpy arrays. 存储为 Numpy 数组的图像列表。
+        mode (str): Type of data being processed, set to 'image'. 正在处理的数据类型，设置为 'image'。
+        bs (int): Batch size, equivalent to the length of `im0`. 批量大小，与 `im0` 的长度相等。
 
     Methods:
         _single_check: Validate and format a single image to a Numpy array.
@@ -560,16 +570,16 @@ class LoadPilAndNumpy:
 
 
 class LoadTensor:
-    """A class for loading and processing tensor data for object detection tasks.
+    """A class for loading and processing tensor data for object detection tasks. 用于加载和处理对象检测任务的张量数据的类。
 
     This class handles the loading and pre-processing of image data from PyTorch tensors, preparing them for further
     processing in object detection pipelines.
 
     Attributes:
-        im0 (torch.Tensor): The input tensor containing the image(s) with shape (B, C, H, W).
-        bs (int): Batch size, inferred from the shape of `im0`.
-        mode (str): Current processing mode, set to 'image'.
-        paths (list[str]): List of image paths or auto-generated filenames.
+        im0 (torch.Tensor): The input tensor containing the image(s) with shape (B, C, H, W). 输入张量，包含形状为 (B, C, H, W) 的图像。
+        bs (int): Batch size, inferred from the shape of `im0`. 批量大小，从 `im0` 的形状推断而来。
+        mode (str): Current processing mode, set to 'image'. 当前处理模式，设置为 'image'。
+        paths (list[str]): List of image paths or auto-generated filenames. 图像路径列表或自动生成的文件名列表。
 
     Methods:
         _single_check: Validates and formats an input tensor.
@@ -650,7 +660,7 @@ def autocast_list(source: list[Any]) -> list[Image.Image | np.ndarray]:
 
 
 def get_best_youtube_url(url: str, method: str = "pytube") -> str | None:
-    """Retrieve the URL of the best quality MP4 video stream from a given YouTube video.
+    """Retrieve the URL of the best quality MP4 video stream from a given YouTube video. 从给定的 YouTube 视频中检索最佳质量的 MP4 视频流的 URL。
 
     Args:
         url (str): The URL of the YouTube video.
