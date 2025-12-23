@@ -1,11 +1,16 @@
 # 项目使用说明文档
 
-### 配置文件
+### 文件说明
 
-1. 模型配置文件在`configs`目录下，针对不同数据集有不用的配置文件。采用的配置文件路径如下：
+1. FusionReID模型配置文件在`configs`目录下，针对不同数据集有不用的配置文件。采用的配置文件路径如下：
 - `DukeMTMC`数据集`configs/DukeMTMC/duke_vitb12_res50_layer2.yml`
 - `Market1501`数据集`configs/Market1501/market_vitb12_res50_layer2.yml`
 - `MSMT17`数据集`configs/MSMT17/msmt_vitb12_res50_layer2.yml`
+
+2. 新增Yolo11模型
+- `ultralytics`文件来自于Yolo11官方项目中
+- `yolo_input`文件为输入Yolo11模型的图像和视频
+- `yolo_weights`文件为Yolo11模型的权重文件
 
 ### 修改记录
 
@@ -51,6 +56,6 @@ def make_dataloader(cfg):
    - 支持配置相似度阈值（TEST.REID_THRESHOLD）
    - 实时保存特征向量供后续使用
    
-   使用方法：
+### 指令：
    ```bash
    python test_net.py --config_file configs/MSMT17/msmt_vitb12_res50_layer2.yml --real_time_folder path/to/your/images
