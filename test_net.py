@@ -57,7 +57,6 @@ if __name__ == "__main__":
         image_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
 
     model = make_model(cfg, num_class=num_classes, camera_num=15, view_num=view_num)
-    # file = cfg.OUTPUT_DIR.replace('.', '')
     model.load_param_ignore_classifier('FusionReID_180.pth')
     
     # 调用实时推理函数
