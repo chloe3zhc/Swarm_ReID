@@ -57,5 +57,15 @@ def make_dataloader(cfg):
    - 实时保存特征向量供后续使用
    
 ### 指令：
-   ```bash
+```bash
    python test_net.py --config_file configs/MSMT17/msmt_vitb12_res50_layer2.yml --real_time_folder path/to/your/images
+   ```
+
+
+### 20251227更新
+`test_yolo_reid_0.py`
+该文件是一个结合了Yolo和ReID的视频处理脚本，主要功能：
+1. 使用Yolov11检测视频中的人并进行跟踪
+2. 对检测到的人进行重识别，判断是否为同一人
+3. 保存原始视频帧，并展示带有重识别ID的视频帧
+
