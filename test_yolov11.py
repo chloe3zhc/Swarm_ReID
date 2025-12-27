@@ -14,7 +14,7 @@ os.makedirs(annotated_frames_dir, exist_ok=True)
 os.makedirs(cropped_images_dir, exist_ok=True)
 
 # 打开视频文件
-cap = cv2.VideoCapture("E:\ZHC\FusionReID-master\yolo_input\zhc_try.mp4")
+cap = cv2.VideoCapture("E:\ZHC\FusionReID-master\yolo_input\zhc1.mp4")
 frame_count = 0
 
 while True:
@@ -41,23 +41,23 @@ while True:
         for i, box in enumerate(results[0].boxes):
             # 获取边界框坐标 (x1, y1, x2, y2)
             x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
-            
+
             # 确保坐标在图像范围内
             x1 = max(0, x1)
             y1 = max(0, y1)
             x2 = min(frame.shape[1], x2)
             y2 = min(frame.shape[0], y2)
-            
+
             # 裁剪图像
             cropped_img = frame[y1:y2, x1:x2]
-            
+
             # 生成唯一文件名，包含帧号和边界框ID
             if box.id is not None:
                 track_id = int(box.id.cpu().numpy())
                 cropped_img_path = os.path.join(cropped_images_dir, f"frame_{frame_count:06d}_id_{track_id}.jpg")
             else:
                 cropped_img_path = os.path.join(cropped_images_dir, f"frame_{frame_count:06d}_det_{i}.jpg")
-            
+
             # 保存裁剪的图像
             cv2.imwrite(cropped_img_path, cropped_img)
 

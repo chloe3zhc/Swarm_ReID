@@ -417,8 +417,10 @@ class FusionReID(nn.Module):
 
             global_feat_1 = local_res.view(B, -1)
             global_feat_2 = local_former.view(B, -1)
-            global_feat_3 = mix_r_q.squeeze()
-            global_feat_4 = mix_f_q.squeeze()
+            # global_feat_3 = mix_r_q.squeeze()
+            # global_feat_4 = mix_f_q.squeeze()
+            global_feat_3 = mix_r_q.squeeze(dim=1)
+            global_feat_4 = mix_f_q.squeeze(dim=1)
 
             feat_1 = self.bottleneck_1(global_feat_1)
             feat_2 = self.bottleneck_2(global_feat_2)
