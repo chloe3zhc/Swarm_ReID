@@ -14,6 +14,14 @@ from utils.metrics import R1_mAP_eval
 # import torch.distributed as dist
 import numpy as np
 
+# 导入scikit-learn的近似最近邻搜索
+try:
+    from sklearn.neighbors import NearestNeighbors
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    SKLEARN_AVAILABLE = False
+    print("Scikit-learn not available, using numpy-based similarity search. Install scikit-learn for faster retrieval.")
+
 def do_inference(cfg,
                  model,
                  val_loader,
@@ -186,8 +194,15 @@ def do_real_time_inference(cfg, model, image_loader):
     model.eval()
 
     # 存储已分配的特征向量和ID
-    known_features = []  # 已知特征向量列表
-    known_ids = []  # 对应的ID列表
+    if SKLEARN_AVAILABLE:
+        # 使用scikit-learn的近似最近邻搜索加速检索
+        known_features = []  # 存储特征向量用于索引构建
+        known_ids = []  # 对应的ID列表
+        nearest_neighbors_model = None  # scikit-learn近邻模型
+    else:
+        known_features = []  # 已知特征向量列表
+        known_ids = []  # 对应的ID列表
+
     next_id = 0  # 下一个可用的ID
 
     assigned_ids = []  # 为每张图片分配的ID
@@ -199,8 +214,12 @@ def do_real_time_inference(cfg, model, image_loader):
 
     # 如果存在历史特征文件，则加载
     if os.path.exists(features_file):
-        known_features, known_ids, next_id = load_known_features(features_file)
-        logger.info(f"Loaded {len(known_features)} known features, next ID: {next_id}")
+        if SKLEARN_AVAILABLE:
+            known_features, known_ids, next_id, nearest_neighbors_model = load_known_features_with_sklearn(features_file)
+            logger.info(f"Loaded {len(known_features)} known features with sklearn model, next ID: {next_id}")
+        else:
+            known_features, known_ids, next_id = load_known_features(features_file)
+            logger.info(f"Loaded {len(known_features)} known features, next ID: {next_id}")
 
     # 遍历数据加载器中的批次
     for n_iter, (imgs, img_paths) in enumerate(image_loader):
@@ -221,7 +240,10 @@ def do_real_time_inference(cfg, model, image_loader):
                 img_path = img_paths[i] if isinstance(img_paths, list) else img_paths
 
                 # 判断是否为新ID
-                assigned_id = assign_id_to_feature(feat_np, known_features, known_ids, cfg.TEST.REID_THRESHOLD)
+                if SKLEARN_AVAILABLE:
+                    assigned_id = assign_id_to_feature_with_sklearn(feat_np, known_features, known_ids, nearest_neighbors_model, cfg.TEST.REID_THRESHOLD)
+                else:
+                    assigned_id = assign_id_to_feature(feat_np, known_features, known_ids, cfg.TEST.REID_THRESHOLD)
 
                 # 如果是新ID，分配新ID
                 if assigned_id is None:
@@ -230,6 +252,16 @@ def do_real_time_inference(cfg, model, image_loader):
                     # 添加到已知特征列表
                     known_features.append(feat_np)
                     known_ids.append(assigned_id)
+                    
+                    # 如果使用scikit-learn，更新模型
+                    if SKLEARN_AVAILABLE:
+                        if nearest_neighbors_model is None:
+                            # 初始化近邻搜索模型
+                            nearest_neighbors_model = NearestNeighbors(n_neighbors=1, metric='cosine', algorithm='brute')
+                        # 重建模型（包含新特征）
+                        features_matrix = np.array(known_features).astype('float32')
+                        nearest_neighbors_model.fit(features_matrix)
+                    
                     logger.info(f"New ID {assigned_id} assigned to image {img_path}")
                 else:
                     logger.info(f"Existing ID {assigned_id} assigned to image {img_path}")
@@ -278,6 +310,50 @@ def load_known_features(features_file):
     return known_features, known_ids, next_id
 
 
+def load_known_features_with_sklearn(features_file):
+    """
+    从文件加载已知特征向量并构建scikit-learn近邻搜索模型
+
+    Args:
+        features_file: 特征文件路径
+
+    Returns:
+        known_features: 已知特征向量列表
+        known_ids: 对应的ID列表
+        next_id: 下一个可用的ID
+        nearest_neighbors_model: scikit-learn近邻搜索模型
+    """
+    known_features = []
+    known_ids = []
+    next_id = 0
+
+    with open(features_file, 'r') as f:
+        for line in f:
+            if line.startswith('#'):
+                continue
+            parts = line.strip().split('\t')
+            if len(parts) >= 3:
+                pid = int(parts[0])
+                feature_str = parts[2]
+                feature = np.array([float(x) for x in feature_str.split()])
+
+                known_features.append(feature)
+                known_ids.append(pid)
+
+                if pid >= next_id:
+                    next_id = pid + 1
+
+    # 构建scikit-learn近邻搜索模型
+    if known_features:
+        features_matrix = np.array(known_features).astype('float32')
+        nearest_neighbors_model = NearestNeighbors(n_neighbors=1, metric='cosine', algorithm='brute')
+        nearest_neighbors_model.fit(features_matrix)
+    else:
+        nearest_neighbors_model = None
+
+    return known_features, known_ids, next_id, nearest_neighbors_model
+
+
 def assign_id_to_feature(feature, known_features, known_ids, threshold=0.9):
     """
     根据特征向量相似度为新特征分配ID
@@ -321,6 +397,52 @@ def assign_id_to_feature(feature, known_features, known_ids, threshold=0.9):
     # 如果最大相似度超过阈值，则认为是同一个ID
     if max_similarity >= threshold:
         return known_ids[max_index]
+    else:
+        return None
+
+
+def assign_id_to_feature_with_sklearn(feature, known_features, known_ids, nearest_neighbors_model, threshold=0.9):
+    """
+    使用scikit-learn近邻搜索根据特征向量相似度为新特征分配ID
+
+    Args:
+        feature: 新特征向量
+        known_features: 已知特征向量列表（为了获取ID映射）
+        known_ids: 对应的ID列表
+        nearest_neighbors_model: scikit-learn近邻搜索模型
+        threshold: 相似度阈值
+
+    Returns:
+        assigned_id: 分配的ID，如果为新ID则返回None
+    """
+    start_time = time.time()
+
+    if nearest_neighbors_model is None or len(known_features) == 0:
+        return None
+
+    # 将特征转换为正确的格式
+    feature_reshaped = feature.reshape(1, -1).astype('float32')
+
+    # 使用scikit-learn进行最近邻搜索
+    distances, indices = nearest_neighbors_model.kneighbors(feature_reshaped)
+
+    # 由于使用余弦距离，需要转换为相似度 (相似度 = 1 - 距离)
+    distance = distances[0][0]
+    similarity = 1 - distance
+
+    # 打印相似度信息用于调试
+    elapsed_time = time.time() - start_time
+    logging.getLogger("FusionReID.real_time").info(f"Sklearn search time: {elapsed_time:.4f} seconds")
+    logging.getLogger("FusionReID.real_time").info(f"Max similarity: {similarity}, Threshold: {threshold}")
+
+    # 如果最大相似度超过阈值，则认为是同一个ID
+    if similarity >= threshold:
+        # 获取匹配的特征索引
+        matched_index = indices[0][0]
+        if matched_index < len(known_ids):
+            return known_ids[matched_index]
+        else:
+            return None
     else:
         return None
 
