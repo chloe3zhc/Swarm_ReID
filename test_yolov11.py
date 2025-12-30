@@ -14,7 +14,7 @@ os.makedirs(annotated_frames_dir, exist_ok=True)
 os.makedirs(cropped_images_dir, exist_ok=True)
 
 # 打开视频文件
-cap = cv2.VideoCapture("E:\ZHC\FusionReID-master\yolo_input\zhc1.mp4")
+cap = cv2.VideoCapture("E:\ZHC\FusionReID-master\output_video.mp4")
 frame_count = 0
 
 while True:
