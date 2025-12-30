@@ -7,6 +7,7 @@ from config import cfg
 from torchvision import transforms as T
 from modeling import make_model
 import time
+import psutil
 
 # Load YOLO model
 model = YOLO("./yolo_weights/yolo11n.pt")  # Load an official Detect model
@@ -22,7 +23,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 reid_model.to(device)  # Move to GPU if available
 
 # 打开视频文件并获取输入帧率
-cap = cv2.VideoCapture("E:\ZHC\FusionReID-master\yolo_input\zhc1_15.mp4")
+cap = cv2.VideoCapture("E:\ZHC\FusionReID-master\yolo_input\zhc1_10.mp4")
 input_fps = cap.get(cv2.CAP_PROP_FPS)
 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 print(f"Input video FPS: {input_fps}")
@@ -38,11 +39,25 @@ os.makedirs(annotated_frames_dir, exist_ok=True)
 known_features = []  # 已知特征向量列表
 known_ids = []  # 对应的ID列表
 next_id = 0  # 下一个可用的ID
-threshold = 0.7  # 特征相似度阈值，可从配置中获取
+threshold = 0.75  # 特征相似度阈值，可从配置中获取
 
+def calculate_features_memory(features_list):
+    """计算特征向量列表占用的内存大小（KB）"""
+    total_memory = 0
+    for feature in features_list:
+        if isinstance(feature, np.ndarray):
+            # 计算NumPy数组占用的内存
+            total_memory += feature.nbytes
+        else:
+            # 对于其他类型，尝试获取其大小
+            total_memory += len(feature) * 8  # 假设每个元素是float64，占8字节
+    return total_memory / 1024  # 转换为KB
 
 def extract_reid_features_batch(images, reid_model, cfg, device):
     """批量提取重识别特征，使用与项目一致的处理方式"""
+
+    # 记录批量处理时间
+    batch_start_time = time.time()
     # 预处理图像
     val_transforms = T.Compose([
         T.ToPILImage(),
@@ -66,6 +81,12 @@ def extract_reid_features_batch(images, reid_model, cfg, device):
         cam_label = torch.zeros(batch_size, dtype=torch.long).to(device)
         feats = reid_model(batch_tensor, cam_label=cam_label, view_label=None)
         feats_np = feats.cpu().numpy()
+
+    # 返回特征列表
+    batch_end_time = time.time()
+    batch_process_time = batch_end_time - batch_start_time
+    print(f"Batch processing time for {len(images)} images: {batch_process_time:.4f} seconds")
+    print(f"Average time per image in batch: {batch_process_time / len(images):.4f} seconds")
 
     # 返回特征列表
     return [feat.flatten() for feat in feats_np]
@@ -117,7 +138,7 @@ while True:
     cv2.imwrite(original_frame_path, frame)
 
     # 运行跟踪推理
-    results = model.track(frame, show=False, classes=[0], persist=True)  # 不显示结果，但保留跟踪ID
+    results = model.track(frame, show=False, classes=[0], persist=True, verbose=False)  # 不显示结果，但保留跟踪ID
 
     # 为每个检测框分配重识别ID
     reid_results = []
@@ -230,16 +251,25 @@ while True:
 
     frame_count += 1
 
+    # 每50帧打印一次内存占用情况
+    if frame_count % 5 == 0:
+        # 计算特征向量占用的内存大小
+        features_memory = calculate_features_memory(known_features)
+        print(f"Frame {frame_count}: Features memory usage: {features_memory:.2f} KB")
+        features_count = len(known_features)
+        print(f"Frame {frame_count}: Number of feature vectors: {features_count}")
+
     # 显示带标注的帧（可选）
     cv2.imshow('Annotated Frame', annotated_frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):  # 按q键退出
         break
-
+'''
     # 计算并显示输出帧率
-    if frame_count % 30 == 0:  # 每30帧计算一次
+    if frame_count % 50 == 0:  # 每50帧计算一次
         elapsed_time = time.time() - start_time
         output_fps = frame_count / elapsed_time
         print(f"Processed {frame_count} frames in {elapsed_time:.2f} seconds. Output FPS: {output_fps:.2f}")
+'''
 
 # 计算最终的输出帧率
 end_time = time.time()
