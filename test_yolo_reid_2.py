@@ -40,6 +40,7 @@ known_ids = []  # 对应的ID列表
 next_id = 0  # 下一个可用的ID
 threshold = 0.7  # 特征相似度阈值，可从配置中获取
 
+
 def extract_reid_features_batch(images, reid_model, cfg, device):
     """批量提取重识别特征，使用与项目一致的处理方式"""
     # 预处理图像
@@ -55,7 +56,7 @@ def extract_reid_features_batch(images, reid_model, cfg, device):
     for img in images:
         img_tensor = val_transforms(img)
         batch_tensors.append(img_tensor)
-    
+
     # 堆叠成批次张量
     batch_tensor = torch.stack(batch_tensors).to(device)
 
@@ -65,7 +66,7 @@ def extract_reid_features_batch(images, reid_model, cfg, device):
         cam_label = torch.zeros(batch_size, dtype=torch.long).to(device)
         feats = reid_model(batch_tensor, cam_label=cam_label, view_label=None)
         feats_np = feats.cpu().numpy()
-    
+
     # 返回特征列表
     return [feat.flatten() for feat in feats_np]
 
